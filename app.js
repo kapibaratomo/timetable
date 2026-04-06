@@ -1,9 +1,9 @@
 // ===== 設定 =====
 const TIME_SLOTS = [
-    { id: 5, label: '⑤', time: '15:50~' },
-    { id: 6, label: '⑥', time: '17:20~' },
-    { id: 7, label: '⑦', time: '18:50~' },
-    { id: 8, label: '⑧', time: '20:20~' },
+    { id: 5, label: '⑤', time: '15:50~<br>17:10' },
+    { id: 6, label: '⑥', time: '17:20~<br>18:40' },
+    { id: 7, label: '⑦', time: '18:50~<br>20:10' },
+    { id: 8, label: '⑧', time: '20:20~<br>21:40' },
 ];
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
