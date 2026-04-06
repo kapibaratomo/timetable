@@ -10,8 +10,7 @@ const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const ROWS_PER_SLOT = 4; // 各時限のブース数
 
 // ===== 状態管理 =====
-let scheduleData = {}; // { "2026-04-06": { "5-0-mon": "生徒名", ... } }
-let currentWeekStart = getMonday(new Date());
+let scheduleData = {}; // { "5-0-mon": "生徒名", ... }
 let githubScheduleSha = null;
 let githubToken = localStorage.getItem('timetable_github_token') || '';
 let saveTimeout = null;
@@ -19,7 +18,6 @@ let isSaving = false;
 
 // ===== DOM要素 =====
 const scheduleBody = document.getElementById('scheduleBody');
-const weekLabel = document.getElementById('weekLabel');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsSection = document.getElementById('settingsSection');
 const tokenInput = document.getElementById('githubToken');
@@ -31,37 +29,6 @@ const saveIndicatorText = document.getElementById('saveIndicatorText');
 
 // ===== ユーティリティ =====
 
-// 指定日の週の月曜日を取得
-function getMonday(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-}
-
-// 日付を YYYY-MM-DD 形式に
-function formatDateKey(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
-
-// 週のラベル表示 (例: 4/6(月) 〜 4/11(土))
-function formatWeekLabel(monday) {
-    const sat = new Date(monday);
-    sat.setDate(sat.getDate() + 5);
-
-    const mMonth = monday.getMonth() + 1;
-    const mDate = monday.getDate();
-    const sMonth = sat.getMonth() + 1;
-    const sDate = sat.getDate();
-
-    return `${mMonth}/${mDate}(月) 〜 ${sMonth}/${sDate}(土)`;
-}
-
 // 今日の曜日キーを取得 (mon, tue, ...)
 function getTodayDayKey() {
     const dayIndex = new Date().getDay(); // 0=日, 1=月, ...
@@ -69,26 +36,10 @@ function getTodayDayKey() {
     return map[dayIndex] || null;
 }
 
-// 表示中の週が今週かどうか
-function isCurrentWeek() {
-    const thisMonday = getMonday(new Date());
-    return formatDateKey(currentWeekStart) === formatDateKey(thisMonday);
-}
-
-// 現在の週のデータを取得
-function getCurrentWeekData() {
-    const key = formatDateKey(currentWeekStart);
-    if (!scheduleData[key]) {
-        scheduleData[key] = {};
-    }
-    return scheduleData[key];
-}
-
 // ===== テーブル構築 =====
 function buildTable() {
     scheduleBody.innerHTML = '';
-    const weekData = getCurrentWeekData();
-    const todayKey = isCurrentWeek() ? getTodayDayKey() : null;
+    const todayKey = getTodayDayKey();
 
     // 今日の列をハイライト
     DAYS.forEach(day => {
@@ -122,7 +73,7 @@ function buildTable() {
                 }
 
                 const cellKey = `${slot.id}-${row}-${day}`;
-                const value = weekData[cellKey] || '';
+                const value = scheduleData[cellKey] || '';
 
                 const cellDiv = document.createElement('div');
                 cellDiv.className = 'cell-content' + (value ? ' filled' : '');
@@ -146,9 +97,6 @@ function buildTable() {
             scheduleBody.appendChild(tr);
         }
     });
-
-    // 週ラベルの更新
-    weekLabel.textContent = formatWeekLabel(currentWeekStart);
 }
 
 // ===== セル編集 =====
@@ -156,7 +104,7 @@ function startEdit(cellEl, cellKey) {
     // 既に編集中ならスキップ
     if (cellEl.querySelector('input')) return;
 
-    const currentValue = getCurrentWeekData()[cellKey] || '';
+    const currentValue = scheduleData[cellKey] || '';
     const input = document.createElement('input');
     input.type = 'text';
     input.value = currentValue;
@@ -191,14 +139,13 @@ function startEdit(cellEl, cellKey) {
 }
 
 function finishEdit(cellEl, cellKey, value) {
-    const weekData = getCurrentWeekData();
     const trimmed = value.trim();
-    const oldValue = weekData[cellKey] || '';
+    const oldValue = scheduleData[cellKey] || '';
 
     if (trimmed) {
-        weekData[cellKey] = trimmed;
+        scheduleData[cellKey] = trimmed;
     } else {
-        delete weekData[cellKey];
+        delete scheduleData[cellKey];
     }
 
     cellEl.textContent = trimmed;
@@ -259,47 +206,6 @@ function debouncedSave() {
         setTimeout(hideSaveIndicator, 2000);
     }, 1500);
 }
-
-// ===== 週ナビゲーション =====
-document.getElementById('prevWeek').addEventListener('click', () => {
-    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-    currentWeekStart = new Date(currentWeekStart);
-    buildTable();
-});
-
-document.getElementById('nextWeek').addEventListener('click', () => {
-    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-    currentWeekStart = new Date(currentWeekStart);
-    buildTable();
-});
-
-document.getElementById('todayBtn').addEventListener('click', () => {
-    currentWeekStart = getMonday(new Date());
-    buildTable();
-});
-
-// 先週のデータをコピー
-document.getElementById('copyWeekBtn').addEventListener('click', () => {
-    const lastWeek = new Date(currentWeekStart);
-    lastWeek.setDate(lastWeek.getDate() - 7);
-    const lastWeekKey = formatDateKey(lastWeek);
-    const currentWeekKey = formatDateKey(currentWeekStart);
-
-    const lastWeekData = scheduleData[lastWeekKey];
-    if (!lastWeekData || Object.keys(lastWeekData).length === 0) {
-        alert('先週のデータがありません');
-        return;
-    }
-
-    const currentData = getCurrentWeekData();
-    if (Object.keys(currentData).length > 0) {
-        if (!confirm('今週のデータを上書きしますか？')) return;
-    }
-
-    scheduleData[currentWeekKey] = { ...lastWeekData };
-    buildTable();
-    debouncedSave();
-});
 
 // ===== GitHub同期 =====
 function showLoading(show) {
