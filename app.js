@@ -7,7 +7,7 @@ const TIME_SLOTS = [
 ];
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-const ROWS_PER_SLOT = 4; // 各時限のブース数
+const ROWS_PER_SLOT = 3; // 各時限のブース数
 
 // ===== 状態管理 =====
 let scheduleData = {}; // { "5-0-mon": "生徒名", ... }
